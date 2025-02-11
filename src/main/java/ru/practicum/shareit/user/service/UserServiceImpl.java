@@ -45,7 +45,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void delete(Long id) {
-        if (id == null) throw new ValidationException("User ID cannot be null.");
+        if (id == null) throw new ValidationException("User ID cannot b null.");
         if (!userStorage.get(id).isPresent()) {
             throw new NotFoundException("User with ID #" + id + " does not exist.");
         }
