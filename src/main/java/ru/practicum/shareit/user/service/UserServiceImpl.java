@@ -7,8 +7,11 @@ import ru.practicum.shareit.error.NotFoundException;
 import ru.practicum.shareit.error.ValidationException;
 import ru.practicum.shareit.user.User;
 import ru.practicum.shareit.user.dao.UserStorage;
+import ru.practicum.shareit.user.dto.UserDto;
+import ru.practicum.shareit.user.mapper.UserMapper;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -16,45 +19,50 @@ public class UserServiceImpl implements UserService {
     private final UserStorage userStorage;
 
     @Override
-    public User create(User user) {
+    public UserDto create(UserDto userDto) {
+        User user = UserMapper.toUser(userDto);
         validate(user);
-        if (getAll().stream().anyMatch(u -> u.getEmail().equals(user.getEmail()))) {
-            throw new EmailException("User with email '" + user.getEmail() + "' already exists.");
-        }
-        return userStorage.create(user);
+        checkEmailDuplicate(user.getId(), user.getEmail());
+        return UserMapper.toUserDto(userStorage.create(user));
     }
 
     @Override
-    public User update(User user) {
-        if (getAll().stream().anyMatch(u -> u.getEmail().equals(user.getEmail()))) {
-            throw new EmailException("User with ID #" + user.getEmail() + " is already exist.");
+    public UserDto update(Long userId, UserDto userDto) {
+        String email = userDto.getEmail();
+        if (email != null && !email.isBlank()) {
+            checkEmailDuplicate(userId, email);
         }
-        var userToUpdate = get(user.getId());
-        if (user.getName() != null) userToUpdate.setName(user.getName());
-        if (user.getEmail() != null) userToUpdate.setEmail(user.getEmail());
-        return userStorage.update(userToUpdate);
+        User user = userStorage.get(userId)
+                .orElseThrow(() -> new NotFoundException("User with ID #" + userId + " does not exist."));
+        String name = userDto.getName();
+        if (name != null && !name.isBlank()) {
+            user.setName(name);
+        }
+        if (email != null && !email.isBlank()) {
+            user.setEmail(email);
+        }
+
+        return UserMapper.toUserDto(user);
     }
 
 
+
     @Override
-    public User get(Long id) {
+    public UserDto get(Long id) {
         if (id == null) throw new ValidationException("User ID cannot be null.");
-        return userStorage.get(id)
-                .orElseThrow(() -> new NotFoundException("User with ID #" + id + " does not exist."));
+        return UserMapper.toUserDto(userStorage.get(id)
+                .orElseThrow(() -> new NotFoundException("User with ID #" + id + " does not exist.")));
     }
 
     @Override
     public void delete(Long id) {
-        if (id == null) throw new ValidationException("User ID cannot b null.");
-        if (!userStorage.get(id).isPresent()) {
-            throw new NotFoundException("User with ID #" + id + " does not exist.");
-        }
+        userStorage.get(id);
         userStorage.delete(id);
     }
 
     @Override
-    public List<User> getAll() {
-        return userStorage.getAll();
+    public List<UserDto> getAll() {
+        return userStorage.getAll().stream().map(UserMapper::toUserDto).collect(Collectors.toList());
     }
 
     private void validate(User user) {
@@ -62,4 +70,14 @@ public class UserServiceImpl implements UserService {
             throw new ValidationException("Invalid email: " + user.getEmail());
         }
     }
+
+    private void checkEmailDuplicate(Long userId, String email) {
+        if (getAll().stream()
+                .filter(u -> !u.getId().equals(userId))
+                .anyMatch(u -> u.getEmail().equals(email))) {
+            throw new EmailException("User with email '" + email + "' already exists.");
+        }
+    }
+
+
 }

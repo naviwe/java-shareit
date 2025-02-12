@@ -4,11 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * TODO Sprint add-controllers.
@@ -22,21 +20,19 @@ public class UserController {
 
     @PostMapping
     public UserDto create(@RequestBody UserDto userDto) {
-        log.info("Received request to create user: {}", userDto);
-        var user = userService.create(UserMapper.toUser(userDto));
-        log.info("User created successfully: {}", user);
-        return UserMapper.toUserDto(user);
+        log.info("Creating new user: {}", userDto);
+        var createdUser = userService.create(userDto);
+        log.info("User created successfully: {}", createdUser);
+        return createdUser;
     }
 
     @PatchMapping("/{userId}")
     public UserDto update(@RequestBody UserDto userDto,
                           @PathVariable Long userId) {
-        log.info("Received request to update user ID: {} with data: {}", userId, userDto);
-        var user = UserMapper.toUser(userDto);
-        user.setId(userId);
-        var updatedUser = userService.update(user);
+        log.info("Updating user with ID {}: {}", userId, userDto);
+        var updatedUser = userService.update(userId, userDto);
         log.info("User updated successfully: {}", updatedUser);
-        return UserMapper.toUserDto(updatedUser);
+        return updatedUser;
     }
 
     @GetMapping("/{userId}")
@@ -44,12 +40,12 @@ public class UserController {
         log.info("Fetching user with ID: {}", userId);
         var user = userService.get(userId);
         log.info("User found: {}", user);
-        return UserMapper.toUserDto(user);
+        return user;
     }
 
     @DeleteMapping("/{userId}")
     public void delete(@PathVariable Long userId) {
-        log.info("Received request to delete user with ID: {}", userId);
+        log.info("Deleting user with ID: {}", userId);
         userService.delete(userId);
         log.info("User with ID {} deleted successfully", userId);
     }
@@ -59,6 +55,7 @@ public class UserController {
         log.info("Fetching all users");
         var users = userService.getAll();
         log.info("Total users found: {}", users.size());
-        return users.stream().map(UserMapper::toUserDto).collect(Collectors.toList());
+        return users;
     }
 }
+

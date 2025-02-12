@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 import ru.practicum.shareit.error.NotFoundException;
 import ru.practicum.shareit.item.Item;
 import ru.practicum.shareit.item.dao.ItemStorage;
+import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.mapper.ItemMapper;
+import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.util.Collections;
@@ -19,69 +22,83 @@ public class ItemServiceImpl implements ItemService {
     private final UserService userService;
 
     @Override
-    public Item create(Item item, Long userId) {
-        validate(item);
-        item.setOwner(userService.get(userId));
-        return itemStorage.create(item);
+    public ItemDto create(ItemDto itemDto, Long userId) {
+        validate(itemDto);
+        var item = ItemMapper.toItem(itemDto);
+        item.setOwner(UserMapper.toUser(userService.get(userId)));
+        var createdItem = itemStorage.create(item);
+        return ItemMapper.toItemDto(createdItem);
     }
 
     @Override
-    public Item update(Item item, Long userId) {
+    public ItemDto update(ItemDto itemDto, Long itemId, Long userId) {
         if (userId == null) throw new ValidationException("User ID cannot be null.");
-        Item existingItem = get(item.getId());
+
+        Item existingItem = itemStorage.get(itemId)
+                .orElseThrow(() -> new NotFoundException("Item with ID #" + itemId + " does not exist."));
 
         if (!existingItem.getOwner().getId().equals(userId)) {
-            throw new NotFoundException("Item with ID #" + item.getId() + " has another owner.");
+            throw new NotFoundException("Item with ID #" + itemId + " has another owner.");
         }
 
-        if (item.getName() != null) existingItem.setName(item.getName());
-        if (item.getDescription() != null) existingItem.setDescription(item.getDescription());
-        if (item.getIsAvailable() != null) existingItem.setIsAvailable(item.getIsAvailable());
+        if (itemDto.getName() != null) existingItem.setName(itemDto.getName());
+        if (itemDto.getDescription() != null) existingItem.setDescription(itemDto.getDescription());
+        if (itemDto.getAvailable() != null) existingItem.setIsAvailable(itemDto.getAvailable());
 
-        return itemStorage.update(existingItem);
+        var updatedItem = itemStorage.update(existingItem);
+        return ItemMapper.toItemDto(updatedItem);
     }
 
+
     @Override
-    public Item get(Long id) {
-        if (id == null) throw new ru.practicum.shareit.error.ValidationException("Item ID cannot be null.");
-        return itemStorage.get(id)
+    public ItemDto get(Long id) {
+        if (id == null) throw new ValidationException("Item ID cannot be null.");
+        var item = itemStorage.get(id)
                 .orElseThrow(() -> new NotFoundException("Item with ID #" + id + " does not exist."));
+        return ItemMapper.toItemDto(item);
     }
 
     @Override
-    public void delete(Long id) {
-        Item item = get(id);
+    public void delete(Long itemId, Long userId) {
+        if (userId == null) throw new ValidationException("User ID cannot be null.");
+
+        Item item = itemStorage.get(itemId)
+                .orElseThrow(() -> new NotFoundException("Item with ID #" + itemId + " does not exist."));
+
+        if (!item.getOwner().getId().equals(userId)) {
+            throw new NotFoundException("Item with ID #" + itemId + " belongs to another user.");
+        }
+
         itemStorage.delete(item.getId());
     }
 
+
     @Override
-    public List<Item> getAll(Long userId) {
+    public List<ItemDto> getAll(Long userId) {
         if (userId == null) throw new ValidationException("User ID cannot be null.");
-        return itemStorage.getAll()
-                .stream()
-                .filter(item -> item.getOwner().getId().equals(userId))
-                .collect(Collectors.toList());
+        userService.get(userId);
+        var userItems = itemStorage.getAllByOwnerId(userId);
+        return userItems.stream().map(ItemMapper::toItemDto).collect(Collectors.toList());
     }
 
     @Override
-    public List<Item> search(String text, Long userId) {
-        if (text.isBlank()) return Collections.emptyList();
-        return itemStorage.getAll()
-                .stream()
-                .filter(Item::getIsAvailable)
-                .filter(item -> (item.getDescription() != null && item.getDescription().toLowerCase().contains(text.toLowerCase())) ||
-                        (item.getName() != null && item.getName().toLowerCase().contains(text.toLowerCase())))
-                .collect(Collectors.toList());
+    public List<ItemDto> search(String text, Long userId) {
+        if (text == null || text.isBlank()) return Collections.emptyList();
+        userService.get(userId);
+        var searchItems = itemStorage.search(text);
+        return searchItems.stream().map(ItemMapper::toItemDto).collect(Collectors.toList());
     }
 
-    private void validate(Item item) {
+
+
+    private void validate(ItemDto item) {
         if (item.getName() == null || item.getName().isBlank()) {
             throw new ValidationException("Name cannot be blank.");
         }
         if (item.getDescription() == null || item.getDescription().isBlank()) {
             throw new ValidationException("Description cannot be blank.");
         }
-        if (item.getIsAvailable() == null) {
+        if (item.getAvailable() == null) {
             throw new ValidationException("Is Available cannot be null.");
         }
     }
