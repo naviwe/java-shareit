@@ -1,17 +1,16 @@
 package ru.practicum.shareit.item.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Value;
+import java.util.List;
 
-/**
- * TODO Sprint add-controllers.
- */
-@Data
-@AllArgsConstructor
+@Value
 public class ItemDto {
-    private Long id;
-    private final String name;
-    private final String description;
-    private final Boolean available;
-    private final Long ownerId;
+    Long id;
+    String name;
+    String description;
+    Boolean available;
+    Long ownerId;
+    BookerInfoDto lastBooking;
+    BookerInfoDto nextBooking;
+    List<CommentDto> comments;
 }
