@@ -6,7 +6,6 @@ import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.Item;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.User;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -67,6 +66,7 @@ public class ItemMapper {
 
         return item;
     }
+
     public static List<ItemDto> itemlistToitemdtolist(List<Item> items) {
         return items.stream().map(ItemMapper::toItemDto).collect(Collectors.toList());
     }
