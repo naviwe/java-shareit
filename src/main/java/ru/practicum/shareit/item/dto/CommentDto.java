@@ -1,34 +1,35 @@
 package ru.practicum.shareit.item.dto;
 
-
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
+import jakarta.persistence.Id;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Data
 @FieldDefaults(makeFinal = false, level = AccessLevel.PRIVATE)
 @Builder
-public class ItemDto {
+public class CommentDto {
+    @Id
     long id;
-
-    String name;
-    String description;
-
-    Boolean available;
+    String text;
+    Long itemId;
+    String authorName;
+    LocalDateTime created;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        ItemDto itemDto = (ItemDto) o;
-        return name.equals(itemDto.name) && description.equals(itemDto.description);
+        CommentDto commentDto = (CommentDto) o;
+        return text.equals(commentDto.text);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, description);
+        return Objects.hash(getClass());
     }
 }
