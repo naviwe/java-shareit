@@ -10,6 +10,7 @@ import ru.practicum.shareit.booking.dto.BookingObjectsDto;
 import ru.practicum.shareit.booking.enums.BookingState;
 import ru.practicum.shareit.booking.enums.BookingStatus;
 import ru.practicum.shareit.booking.mapper.BookingMapper;
+import ru.practicum.shareit.error.AccessDeniedException;
 import ru.practicum.shareit.error.NotFoundException;
 import ru.practicum.shareit.error.ValidationException;
 import ru.practicum.shareit.item.Item;
@@ -68,7 +69,7 @@ public class BookingServiceImpl implements BookingService {
     public BookingObjectsDto confirmation(Long userId, boolean approved, Long bookingId) {
         Booking booking = bookingRepository.getBookerWithAll(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking не был найден по id = " + bookingId));
-        if (!booking.getItem().getOwner().getId().equals(userId)) throw new NotFoundException(
+        if (!booking.getItem().getOwner().getId().equals(userId)) throw new AccessDeniedException(
                 "User id не является владельцем вещи");
         if (approved) {
             if (booking.getStatus().equals(BookingStatus.APPROVED)) {
