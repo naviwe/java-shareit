@@ -17,7 +17,6 @@ public class Item {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @NonNull
     @Column(nullable = false)
     String name;
 
