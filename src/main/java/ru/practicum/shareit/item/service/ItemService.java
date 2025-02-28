@@ -1,9 +1,10 @@
 package ru.practicum.shareit.item.service;
 
+import lombok.SneakyThrows;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.user.dto.UserDto;
+import ru.practicum.shareit.item.dto.ItemOwnerDto;
 
 import java.util.List;
 
@@ -12,10 +13,11 @@ public interface ItemService {
     @Transactional
     ItemDto create(ItemDto itemDto, Long userID);
 
-    @Transactional(readOnly = true)
-    ItemDto getByItemIdAndUserId(Long itemId, Long userId);
+    @Transactional
+    ItemOwnerDto findById(long userId, long itemId);
 
-    List<ItemDto> getAll(Long id);
+    @Transactional(readOnly = true)
+    List<ItemOwnerDto> getItems(long userId);
 
     @Transactional(readOnly = true)
     List<ItemDto> getAllByText(String text);
@@ -23,9 +25,8 @@ public interface ItemService {
     @Transactional
     ItemDto update(Long userId, Long itemId, ItemDto itemDto);
 
-    @Transactional
-    CommentDto createComment(CommentDto commentDto, UserDto userDto, ItemDto itemDto);
+    @SneakyThrows
+    CommentDto addComment(long userId, long itemId, CommentDto commentDto);
 
-    @Transactional(readOnly = true)
-    List<CommentDto> getAllCommentsByItemId(Long itemId);
+    List<CommentDto> getComments(long itemId);
 }

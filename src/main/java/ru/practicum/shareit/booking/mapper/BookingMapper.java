@@ -3,8 +3,8 @@ package ru.practicum.shareit.booking.mapper;
 import ru.practicum.shareit.booking.dto.BookingInputDto;
 import ru.practicum.shareit.booking.dto.BookingOutputDto;
 import ru.practicum.shareit.booking.Booking;
+import ru.practicum.shareit.booking.dto.LastNextBookingDto;
 import ru.practicum.shareit.booking.enums.BookingStatus;
-import ru.practicum.shareit.item.dto.BookerInfoDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.Item;
 import ru.practicum.shareit.user.dto.UserDto;
@@ -37,9 +37,11 @@ public class BookingMapper {
                 .collect(Collectors.toList());
     }
 
-    public static BookerInfoDto toBookingInfoDto(Booking booking) {
-        return new BookerInfoDto(booking.getId(), booking.getBooker().getId(),
-                booking.getStart(), booking.getEnd());
+    public static LastNextBookingDto toLastNextBookingDto(Booking booking) {
+        return new LastNextBookingDto(
+                booking.getId(),
+                booking.getBooker().getId()
+        );
     }
 
     public static Booking toBooking(BookingInputDto bookingInputDto,

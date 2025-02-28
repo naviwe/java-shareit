@@ -5,8 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemOwnerDto;
 import ru.practicum.shareit.item.service.ItemService;
-import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.util.List;
@@ -29,10 +29,10 @@ public class ItemController {
     }
 
     @GetMapping
-    public List<ItemDto> getAll(@RequestHeader("X-Sharer-User-Id") Long userId) {
+    public List<ItemOwnerDto> getAll(@RequestHeader("X-Sharer-User-Id") Long userId) {
         log.info("Fetching all items for userId: {}", userId);
         userService.get(userId);
-        List<ItemDto> items = itemService.getAll(userId);
+        List<ItemOwnerDto> items = itemService.getItems(userId);
         log.info("Fetched {} items for userId: {}", items.size(), userId);
         return items;
     }
@@ -42,19 +42,17 @@ public class ItemController {
                                  @RequestHeader("X-Sharer-User-Id") Long userId,
                                  @PathVariable Long itemId) {
         log.info("Adding comment for itemId: {} by userId: {}", itemId, userId);
-        UserDto userDto = userService.get(userId);
-        ItemDto itemDto = itemService.getByItemIdAndUserId(itemId, userId);
-        CommentDto createdComment = itemService.createComment(commentDto, userDto, itemDto);
+        CommentDto createdComment = itemService.addComment(userId, itemId, commentDto);
         log.info("Comment added successfully for itemId: {}", itemId);
         return createdComment;
     }
 
     @GetMapping("/{itemId}")
-    public ItemDto getById(@RequestHeader("X-Sharer-User-Id") Long userId,
+    public ItemOwnerDto getById(@RequestHeader("X-Sharer-User-Id") Long userId,
                            @PathVariable("itemId") Long itemId) {
         log.info("Fetching item with itemId: {} for userId: {}", itemId, userId);
         userService.get(userId);
-        ItemDto item = itemService.getByItemIdAndUserId(itemId, userId);
+        ItemOwnerDto item = itemService.findById(userId, itemId);
         log.info("Fetched item: {}", item);
         return item;
     }

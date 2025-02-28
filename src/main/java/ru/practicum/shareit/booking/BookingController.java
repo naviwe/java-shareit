@@ -8,6 +8,8 @@ import ru.practicum.shareit.booking.dto.BookingOutputDto;
 import ru.practicum.shareit.booking.service.BookingService;
 import ru.practicum.shareit.booking.enums.State;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemOwnerDto;
+import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.service.ItemService;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.service.UserService;
@@ -31,7 +33,7 @@ public class BookingController {
                 userId, bookingInputDto.getItemId(), bookingInputDto.getStart(), bookingInputDto.getEnd());
 
         UserDto userDto = userService.get(userId);
-        ItemDto itemDto = itemService.getByItemIdAndUserId(bookingInputDto.getItemId(), userId);
+        ItemDto itemDto = ItemMapper.toItemDto(itemService.findById(bookingInputDto.getItemId(), userId), userId);
 
         BookingOutputDto bookingOutputDto = bookingService.create(userDto, itemDto, bookingInputDto);
         log.info("Booking created successfully: {}", bookingOutputDto);

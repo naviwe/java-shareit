@@ -7,14 +7,11 @@ import ru.practicum.shareit.booking.Booking;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    @Query("SELECT b FROM Booking b JOIN Item i ON b.item.id = i.id " +
-            "WHERE b.booker.id = :bookerId AND i.id = :itemId AND b.status = 'APPROVED' AND b.end < :currentTime")
-    List<Booking> getAllUserBookings(Long bookerId, Long itemId, LocalDateTime currentTime);
+    List<Booking> findByBookerIdAndEndBeforeOrderByStartDesc(long booker, LocalDateTime end);
 
     @Query("SELECT b FROM Booking b JOIN Item i ON b.item.id = i.id " +
             "WHERE b.booker.id = :bookerId " +
@@ -76,15 +73,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "ORDER BY b.start DESC")
     List<Booking> getAllPastBookingsByOwnerId(Long ownerId, LocalDateTime currentTime);
 
-    @Query(value = "SELECT b.id AS booking_id, b.start_date, b.end_date, b.status, b.booker_id, b.item_id AS booking_item_id, i.id AS item_id, i.name, i.description, i.is_available, i.owner_id " +
-            "FROM bookings b JOIN items i ON i.id = b.item_id " +
-            "WHERE b.item_id = :itemId AND b.end_date < :currentTime ORDER BY b.end_date ASC LIMIT 1",
-            nativeQuery = true)
-    Optional<Booking> getLastBooking(Long itemId, LocalDateTime currentTime);
+    Booking getFirstByItemIdOrderByEndDesc(long itemId);
 
-    @Query(value = "SELECT b.id AS booking_id, b.start_date, b.end_date, b.status, b.booker_id, b.item_id AS booking_item_id, i.id AS item_id, i.name, i.description, i.is_available, i.owner_id " +
-            "FROM bookings b JOIN items i ON i.id = b.item_id " +
-            "WHERE b.item_id = :itemId AND b.start_date > :currentTime AND b.status != 'REJECTED' ORDER BY b.start_date ASC LIMIT 1",
-            nativeQuery = true)
-    Optional<Booking> getNextBooking(Long itemId, LocalDateTime currentTime);
+    Booking getFirstByItemIdOrderByStartAsc(long itemId);
 }

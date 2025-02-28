@@ -10,8 +10,7 @@ import java.util.List;
 
 @Repository
 public interface ItemRepository extends JpaRepository<Item, Long> {
-    @Query("SELECT i FROM Item i WHERE i.owner.id = :ownerId ORDER BY i.id ASC")
-    List<Item> findAllByOwnerIdOrderByIdAsc(Long ownerId);
+    List<Item> findByOwnerId(long userId);
 
     @Query("select i from Item i " +
             "where (lower(i.name) like '%'||lower(:text)||'%' " +
