@@ -29,6 +29,7 @@ public class BookingServiceImpl implements BookingService {
     private final ItemRepository itemRepository;
 
     @Override
+    @Transactional
     public BookingObjectsDto createBooking(Long userId, BookingDto bookingDto) {
         if (bookingDto.getStart() == null || bookingDto.getEnd() == null) throw new ValidationException(
                 "В теле Booking отсутствует старт/конец");
@@ -63,6 +64,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     public BookingObjectsDto confirmation(Long userId, boolean approved, Long bookingId) {
         Booking booking = bookingRepository.getBookerWithAll(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking не был найден по id = " + bookingId));

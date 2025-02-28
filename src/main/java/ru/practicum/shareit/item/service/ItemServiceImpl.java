@@ -2,6 +2,7 @@ package ru.practicum.shareit.item.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.Booking;
 import ru.practicum.shareit.booking.dao.BookingRepository;
 import ru.practicum.shareit.booking.enums.BookingStatus;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ItemServiceImpl implements ItemService {
     private final ItemRepository itemRepository;
@@ -45,6 +47,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
+    @Transactional
     public ItemDto create(long userId, ItemDto itemDto) {
         boolean isNullAvailable = itemDto.getAvailable() == null;
         boolean isNullName = itemDto.getName() == null || itemDto.getName().isBlank();
@@ -60,11 +63,13 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
+    @Transactional
     public void deleteByUserIdAndItemId(long userId, long itemId) {
         itemRepository.deleteByIdAndOwnerId(userId, itemId);
     }
 
     @Override
+    @Transactional
     public ItemDto updateItem(long userId, long itemId, ItemDto itemDto) {
         Item item = itemRepository.findByIdAndOwnerId(itemId, userId)
                 .orElseThrow(() -> new NotFoundException("Item не был найден"));
@@ -109,6 +114,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
+    @Transactional
     public CommentDto createComment(Long userId, Long itemId, CommentDto commentDto) {
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User не найден по id = " + userId));
