@@ -32,7 +32,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public BookingObjectsDto createBooking(Long userId, BookingDto bookingDto) {
-        if (!bookingDto.getStart().isBefore(bookingDto.getEnd())) {
+        if (bookingDto.getStart().isAfter(bookingDto.getEnd())) {
             throw new ValidationException("Дата начала бронирования должна быть до даты окончания");
         }
         if (!getItem(bookingDto.getItemId()).isAvailable()) {
