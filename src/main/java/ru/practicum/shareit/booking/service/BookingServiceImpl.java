@@ -32,28 +32,27 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public BookingObjectsDto createBooking(Long userId, BookingDto bookingDto) {
-        if (bookingDto.getStart() == null || bookingDto.getEnd() == null) throw new ValidationException(
-                "В теле Booking отсутствует старт/конец");
+        if (bookingDto.getStart().isBefore(bookingDto.getEnd())) {
+        } else {
+            throw new ValidationException("Дата начала бронирования должна быть до даты окончания");
+        }
+        if (!getItem(bookingDto.getItemId()).isAvailable()) {
+            throw new IllegalArgumentException("Вещь недоступна для бронирования");
+        }
+
         User booker = getUser(userId);
         long itemId = bookingDto.getItemId();
         Item item = getItem(itemId);
         bookingDto.setStatus(BookingStatus.WAITING);
 
-        if (isOwner(userId, item)) throw new NotFoundException(String.format(
-                "User с id %d владелец вещи с id %d", userId, itemId));
-
-        if (!item.isAvailable()) throw new IllegalArgumentException(
-                "Item available = false: забронировать вещь можно только когда она доступна");
-        if (!bookingDto.getEnd().isAfter(bookingDto.getStart())) throw new ValidationException(
-                "Дата окончания бронирования должна быть после даты начала");
+        if (isOwner(userId, item)) {
+            throw new ValidationException(String.format(
+                    "Пользователь с ID %d не может забронировать свою же вещь (ID %d)", userId, itemId));
+        }
 
         List<Booking> bookings = bookingRepository.isAvailbleTime(itemId, bookingDto.getStart(), bookingDto.getEnd());
-
-        if (bookingDto.getStart().isBefore(LocalDateTime.now())) {
-            throw new ValidationException("Значение Start при аренде не может быть в прошлом");
-        }
         if (!bookings.isEmpty()) {
-            throw new ValidationException("Время для бронирования не доступно");
+            throw new ValidationException("Время для бронирования недоступно");
         }
 
         Booking booking = bookingRepository.save(BookingMapper.mapToBooking(
