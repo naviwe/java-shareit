@@ -20,6 +20,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT b " +
             "FROM Booking b " +
+            "JOIN FETCH b.item i " +
+            "JOIN FETCH i.owner o " +
+            "WHERE b.id = ?1")
+    Optional<Booking> getBookingWithAll(Long bookingId);
+
+    @Query("SELECT b " +
+            "FROM Booking b " +
             "JOIN b.item i " +
             "JOIN i.owner o " +
             "JOIN b.booker br " +
@@ -27,6 +34,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "AND b.id = ?2")
     Optional<Booking> getByOwnerIdOrBookerId(Long userId, Long bookingId);
 
+    List<Booking> isAvailableTime(long itemId, LocalDateTime start, LocalDateTime end);
 
     List<Booking> findByItemOwnerIdAndStatusOrderByStartDesc(Long userId, BookingStatus status);
 
