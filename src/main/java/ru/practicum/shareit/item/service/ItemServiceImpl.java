@@ -1,105 +1,189 @@
 package ru.practicum.shareit.item.service;
 
-import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.booking.Booking;
+import ru.practicum.shareit.booking.dao.BookingRepository;
+import ru.practicum.shareit.booking.enums.BookingStatus;
+import ru.practicum.shareit.booking.mapper.BookingMapper;
 import ru.practicum.shareit.error.NotFoundException;
+import ru.practicum.shareit.error.ValidationException;
+import ru.practicum.shareit.item.Comment;
 import ru.practicum.shareit.item.Item;
-import ru.practicum.shareit.item.dao.ItemStorage;
+import ru.practicum.shareit.item.dao.CommentRepository;
+import ru.practicum.shareit.item.dao.ItemRepository;
+import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemWithCommentDto;
+import ru.practicum.shareit.item.mapper.CommentMapper;
 import ru.practicum.shareit.item.mapper.ItemMapper;
-import ru.practicum.shareit.user.mapper.UserMapper;
-import ru.practicum.shareit.user.service.UserService;
+import ru.practicum.shareit.user.User;
+import ru.practicum.shareit.user.dao.UserRepository;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ItemServiceImpl implements ItemService {
-    private final ItemStorage itemStorage;
-    private final UserService userService;
+    private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
+    private final CommentRepository commentRepository;
 
     @Override
-    public ItemDto create(ItemDto itemDto, Long userId) {
-        validate(itemDto);
-        var item = ItemMapper.toItem(itemDto);
-        item.setOwner(UserMapper.toUser(userService.get(userId)));
-        var createdItem = itemStorage.create(item);
-        return ItemMapper.toItemDto(createdItem);
+    public List<ItemWithCommentDto> getItemsByUserId(long userId) {
+        List<Item> items = itemRepository.findItemsByOwnerId(userId);
+        if (items.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<Long, ItemWithCommentDto> itemsWithIds = new HashMap<>();
+        items.forEach(item -> itemsWithIds.put(item.getId(), ItemMapper.mapToItemWitchCommentDto(item)));
+        addBookingDatesToItems(itemsWithIds);
+        addBookingDatesToItems(itemsWithIds);
+        return new ArrayList<>(itemsWithIds.values());
     }
 
     @Override
-    public ItemDto update(ItemDto itemDto, Long itemId, Long userId) {
-        if (userId == null) throw new ValidationException("User ID cannot be null.");
+    @Transactional
+    public ItemDto create(long userId, ItemDto itemDto) {
+        boolean isNullAvailable = itemDto.getAvailable() == null;
+        boolean isNullName = itemDto.getName() == null || itemDto.getName().isBlank();
+        boolean isNullDescription = itemDto.getDescription() == null;
 
-        Item existingItem = itemStorage.get(itemId)
-                .orElseThrow(() -> new NotFoundException("Item with ID #" + itemId + " does not exist."));
+        if (isNullAvailable) throw new ValidationException("ERROR: Available is null");
+        if (isNullName) throw new ValidationException("ERROR: Name is null");
+        if (isNullDescription) throw new ValidationException("ERROR: Description is null");
 
-        if (!existingItem.getOwner().getId().equals(userId)) {
-            throw new NotFoundException("Item with ID #" + itemId + " has another owner.");
+        Item item = itemRepository.save(ItemMapper.mapToItem(itemDto,
+                userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User не найден по id = " + userId))));
+        return ItemMapper.mapToItemDto(item);
+    }
+
+    @Override
+    @Transactional
+    public void deleteByUserIdAndItemId(long userId, long itemId) {
+        itemRepository.deleteByIdAndOwnerId(userId, itemId);
+    }
+
+    @Override
+    @Transactional
+    public ItemDto updateItem(long userId, long itemId, ItemDto itemDto) {
+        Item item = itemRepository.findByIdAndOwnerId(itemId, userId)
+                .orElseThrow(() -> new NotFoundException("Item не был найден"));
+        boolean isHasName = itemDto.getName() != null;
+        boolean isHasDescription = itemDto.getDescription() != null;
+        boolean isHasAvailable = itemDto.getAvailable() != null;
+
+        if (isHasAvailable) item.setAvailable(itemDto.getAvailable());
+        if (isHasName) item.setName(itemDto.getName());
+        if (isHasDescription) item.setDescription(itemDto.getDescription());
+        item = itemRepository.save(item);
+        return ItemMapper.mapToItemDto(item);
+    }
+
+    @Override
+    public ItemWithCommentDto getItem(long userId, long itemId) {
+        Item item = itemRepository.findByIdFetch(itemId)
+                .orElseThrow(() -> new NotFoundException("Item не найден по id = " + itemId));
+        ItemWithCommentDto itemWithCommentDto = ItemMapper.mapToItemWitchCommentDto(item);
+
+        long ownerId = item.getOwner().getId();
+        if (ownerId == userId) {
+            addBookingsToItem(itemWithCommentDto);
+        }
+        addCommentsToItem(itemWithCommentDto);
+        return itemWithCommentDto;
+    }
+
+    @Override
+    public List<ItemDto> getAll() {
+        List<Item> items = itemRepository.findAll();
+        return ItemMapper.mapToItemDto(items);
+    }
+
+    @Override
+    public List<ItemDto> searchByText(String text, long userId) {
+        if (text.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<Item> items = itemRepository.getListILikeByText(text.toLowerCase());
+        return ItemMapper.mapToItemDto(items);
+    }
+
+    @Override
+    @Transactional
+    public CommentDto createComment(Long userId, Long itemId, CommentDto commentDto) {
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User не найден по id = " + userId));
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item не найден по id = " + itemId));
+
+        List<Booking> bookingsItemByUser = bookingRepository
+                .findByBookerIdAndItemIdAndStatusAndStartIsBefore(userId, itemId, BookingStatus.APPROVED, LocalDateTime.now());
+        if (bookingsItemByUser.isEmpty()) {
+            throw new ValidationException(
+                    String.format("User с id %s не арендовал вещь с id %s", userId, itemId));
+        }
+        if (commentDto.getText().isBlank()) throw new IllegalArgumentException("Text не может быть пустым");
+        Comment comment = CommentMapper.mapToComment(commentDto, owner, item);
+
+        return CommentMapper.mapToCommentDto(commentRepository.save(comment));
+    }
+
+    private void addBookingDatesToItems(Map<Long, ItemWithCommentDto> itemsWithId) {
+        Map<Long, List<Booking>> bookings = new HashMap<>();
+        List<Long> itemIds = new ArrayList<>(itemsWithId.keySet());
+
+        List<Booking> bookingsList = bookingRepository.findByItemIdInAndStatusOrStatusOrderByStartAsc(itemIds,
+                BookingStatus.APPROVED, BookingStatus.WAITING);
+
+        bookingsList.forEach(booking -> bookings.computeIfAbsent(booking.getItem().getId(),
+                key -> new ArrayList<>()).add(booking));
+
+        bookings.forEach((key, value) -> lastNextBooking(value, itemsWithId.get(key)));
+    }
+
+    private void addBookingsToItem(ItemWithCommentDto itemDto) {
+        List<Booking> bookings = bookingRepository.findByItemIdAndStatusOrStatusOrderByStartAsc(itemDto.getId(),
+                BookingStatus.APPROVED, BookingStatus.WAITING);
+        if (bookings.isEmpty()) {
+            return;
+        }
+        lastNextBooking(bookings, itemDto);
+    }
+
+    private void addCommentsToItem(ItemWithCommentDto itemDto) {
+        commentRepository.findAllByItemIdOrderByCreatedDesc(itemDto.getId())
+                .forEach(comment -> itemDto.addComment(CommentMapper.mapToCommentDto(comment)));
+    }
+
+    private void lastNextBooking(List<Booking> bookings, ItemWithCommentDto itemDto) {
+
+        Booking lastBooking;
+        Booking nextBooking = null;
+        LocalDateTime now = LocalDateTime.now();
+
+
+        if (bookings.get(0).getStart().isAfter(now)) {
+            itemDto.setNextBooking(BookingMapper.mapToBookingDtoItem(bookings.get(0)));
+            return;
+        } else {
+            lastBooking = bookings.get(0);
         }
 
-        if (itemDto.getName() != null) existingItem.setName(itemDto.getName());
-        if (itemDto.getDescription() != null) existingItem.setDescription(itemDto.getDescription());
-        if (itemDto.getAvailable() != null) existingItem.setIsAvailable(itemDto.getAvailable());
-
-        var updatedItem = itemStorage.update(existingItem);
-        return ItemMapper.toItemDto(updatedItem);
-    }
-
-
-    @Override
-    public ItemDto get(Long id) {
-        if (id == null) throw new ValidationException("Item ID cannot be null.");
-        var item = itemStorage.get(id)
-                .orElseThrow(() -> new NotFoundException("Item with ID #" + id + " does not exist."));
-        return ItemMapper.toItemDto(item);
-    }
-
-    @Override
-    public void delete(Long itemId, Long userId) {
-        if (userId == null) throw new ValidationException("User ID cannot be null.");
-
-        Item item = itemStorage.get(itemId)
-                .orElseThrow(() -> new NotFoundException("Item with ID #" + itemId + " does not exist."));
-
-        if (!item.getOwner().getId().equals(userId)) {
-            throw new NotFoundException("Item with ID #" + itemId + " belongs to another user.");
+        for (int i = 1; i < bookings.size(); i++) {
+            if (bookings.get(i).getStart().isAfter(now)) {
+                lastBooking = bookings.get(i - 1);
+                nextBooking = bookings.get(i);
+                break;
+            }
         }
-
-        itemStorage.delete(item.getId());
-    }
-
-
-    @Override
-    public List<ItemDto> getAll(Long userId) {
-        if (userId == null) throw new ValidationException("User ID cannot be null.");
-        userService.get(userId);
-        var userItems = itemStorage.getAllByOwnerId(userId);
-        return userItems.stream().map(ItemMapper::toItemDto).collect(Collectors.toList());
-    }
-
-    @Override
-    public List<ItemDto> search(String text, Long userId) {
-        if (text == null || text.isBlank()) return Collections.emptyList();
-        userService.get(userId);
-        var searchItems = itemStorage.search(text);
-        return searchItems.stream().map(ItemMapper::toItemDto).collect(Collectors.toList());
-    }
-
-
-
-    private void validate(ItemDto item) {
-        if (item.getName() == null || item.getName().isBlank()) {
-            throw new ValidationException("Name cannot be blank.");
-        }
-        if (item.getDescription() == null || item.getDescription().isBlank()) {
-            throw new ValidationException("Description cannot be blank.");
-        }
-        if (item.getAvailable() == null) {
-            throw new ValidationException("Is Available cannot be null.");
+        itemDto.setLastBooking(BookingMapper.mapToBookingDtoItem(lastBooking));
+        if (nextBooking != null) {
+            itemDto.setNextBooking(BookingMapper.mapToBookingDtoItem(nextBooking));
         }
     }
 }

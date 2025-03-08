@@ -30,6 +30,12 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handle(final AccessDeniedException e) {
+        return new ErrorResponse(e.getMessage());
+    }
+
+    @ExceptionHandler
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIncorrectValidation(final MethodArgumentNotValidException e) {
         return new ErrorResponse(Objects.requireNonNull(e.getFieldError()).getDefaultMessage());
