@@ -26,17 +26,4 @@ public class ItemWithCommentDto {
     public void addComment(CommentDto comment) {
         comments.add(comment);
     }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ItemWithCommentDto itemWithCommentDto = (ItemWithCommentDto) o;
-        return name.equals(itemWithCommentDto.name) && description.equals(itemWithCommentDto.description);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(name, description);
-    }
 }
