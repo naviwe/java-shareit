@@ -18,6 +18,7 @@ import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemWithCommentDto;
 import ru.practicum.shareit.item.dto.CommentMapper;
 import ru.practicum.shareit.item.dto.ItemMapper;
+import ru.practicum.shareit.request.dao.ItemRequestRepository;
 import ru.practicum.shareit.user.User;
 import ru.practicum.shareit.user.dao.UserRepository;
 
@@ -32,6 +33,7 @@ public class ItemServiceImpl implements ItemService {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final CommentRepository commentRepository;
+    private final ItemRequestRepository itemRequestRepository;
 
     @Override
     public List<ItemWithCommentDto> getItemsByUserId(long userId) {
@@ -49,16 +51,18 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public ItemDto create(long userId, ItemDto itemDto) {
-        boolean isNullAvailable = itemDto.getAvailable() == null;
-        boolean isNullName = itemDto.getName() == null || itemDto.getName().isBlank();
-        boolean isNullDescription = itemDto.getDescription() == null;
+        if (itemDto.getAvailable() == null) throw new ValidationException("ERROR: Available is null");
+        if (itemDto.getName() == null || itemDto.getName().isBlank()) throw new ValidationException("ERROR: Name is null");
+        if (itemDto.getDescription() == null) throw new ValidationException("ERROR: Description is null");
 
-        if (isNullAvailable) throw new ValidationException("ERROR: Available is null");
-        if (isNullName) throw new ValidationException("ERROR: Name is null");
-        if (isNullDescription) throw new ValidationException("ERROR: Description is null");
+        if (itemDto.getRequestId() != null && !itemRequestRepository.existsById(itemDto.getRequestId())) {
+            throw new NotFoundException("Запрос с id = " + itemDto.getRequestId() + " не найден");
+        }
 
-        Item item = itemRepository.save(ItemMapper.mapToItem(itemDto,
-                userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User не найден по id = " + userId))));
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User не найден по id = " + userId));
+
+        Item item = itemRepository.save(ItemMapper.mapToItem(itemDto, owner));
         return ItemMapper.mapToItemDto(item);
     }
 
